@@ -1,4 +1,3 @@
-import stringifyJson from 'json-stable-stringify';
 import {
   DefineStoreOptions,
   StateTree,
@@ -7,6 +6,8 @@ import {
   defineStore,
 } from 'pinia';
 import { UnwrapRef } from 'vue';
+
+import { encode, objectRepresentation, decode } from './utils';
 
 interface CachingOptions {
   /**
@@ -139,8 +140,8 @@ export function defineCachedStore<
 
         const cacheKeySuffix =
           cachingOptions?.refreshSpecificKey ?? true
-            ? btoa(stringifyJson(refreshOptions))
-            : 0;
+            ? objectRepresentation(refreshOptions)
+            : '0';
         const cacheKey = `${cachingOptions?.keyPrefix ?? 'store'}-${
           options.id
         }-${cacheKeySuffix}`;
@@ -148,7 +149,7 @@ export function defineCachedStore<
         const rawCacheData = storage.getItem(cacheKey);
 
         if (rawCacheData !== null) {
-          const cacheData = JSON.parse(rawCacheData) as CacheData<State>;
+          const cacheData = decode<CacheData<State>>(rawCacheData);
           if (
             cacheData.timestamp >
             new Date().valueOf() - (cachingOptions?.maxAge ?? 86400000)
@@ -173,7 +174,7 @@ export function defineCachedStore<
           state: this.$state,
           timestamp: new Date().valueOf(),
         };
-        storage.setItem(cacheKey, JSON.stringify(cacheData));
+        storage.setItem(cacheKey, encode(cacheData));
       },
 
       $clearCache() {
