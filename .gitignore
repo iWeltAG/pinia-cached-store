@@ -1,0 +1,14 @@
+# NPM logs and reports
+logs
+*.log
+npm-debug.log*
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Dependencies and build output
+node_modules/
+/dist/
+
+# Editor and system files
+.idea/
+.vscode/
+.DS_Store

@@ -1,0 +1,55 @@
+{
+  "name": "pinia-cached-store",
+  "version": "0.1.0",
+  "description": "Pinia store extension that allows transparent caching of state in local storage.",
+  "main": "./dist/index.cjs.js",
+  "module": "./dist/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/pinia.js",
+      "require": "./dist/pinia.cjs.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "rollup -c rollup.config.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iWeltAG/pinia-cached-store.git"
+  },
+  "keywords": [
+    "vue",
+    "store",
+    "pinia",
+    "typescript",
+    "localstorage"
+  ],
+  "author": "iWelt AG",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/iWeltAG/pinia-cached-store/issues"
+  },
+  "homepage": "https://github.com/iWeltAG/pinia-cached-store#readme",
+  "devDependencies": {
+    "@rollup/plugin-typescript": "^8.2.5",
+    "@types/json-stable-stringify": "^1.0.33",
+    "@types/node": "^16.6.0",
+    "prettier": "^2.3.2",
+    "rollup": "^2.56.2",
+    "tslib": "^2.3.1",
+    "typescript": "^4.3.5"
+  },
+  "peerDependencies": {
+    "pinia": "^2.0.0-rc.4",
+    "typescript": "^4.3.5",
+    "vue": "^3.2.0"
+  },
+  "dependencies": {
+    "json-stable-stringify": "^1.0.1",
+    "pinia": "^2.0.0-rc.4",
+    "vue": "^3.2.2"
+  }
+}
