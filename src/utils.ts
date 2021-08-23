@@ -14,7 +14,7 @@ export function encode(data: unknown): string {
  * @param data The string to decode.
  */
 export function decode<T>(data: string): T {
-  return JSON.parse(data) as T;
+  return JSON.parse(atob(data)) as T;
 }
 
 /**

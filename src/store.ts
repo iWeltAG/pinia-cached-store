@@ -9,7 +9,7 @@ import { UnwrapRef } from 'vue';
 
 import { encode, objectRepresentation, decode } from './utils';
 
-interface CachingOptions {
+export interface CachingOptions {
   /**
    * Custom prefix to use for all local storage entries.
    *
@@ -152,7 +152,7 @@ export function defineCachedStore<
           const cacheData = decode<CacheData<State>>(rawCacheData);
           if (
             cacheData.timestamp >
-            new Date().valueOf() - (cachingOptions?.maxAge ?? 86400000)
+            Date.now() - (cachingOptions?.maxAge ?? 86400000)
           ) {
             // When a cached value is available and not expired
             // (the default TTL is a day), we can load it.
@@ -172,7 +172,7 @@ export function defineCachedStore<
         // Write back any changes to the cache.
         const cacheData: CacheData<State> = {
           state: this.$state,
-          timestamp: new Date().valueOf(),
+          timestamp: Date.now(),
         };
         storage.setItem(cacheKey, encode(cacheData));
       },
