@@ -7,6 +7,10 @@
     "sourceMap": false,
     "noEmit": true,
 
+    "paths": {
+      "pinia-cached-store": ["src"]
+    },
+
     "target": "esnext",
     "module": "esnext",
     "moduleResolution": "node",
@@ -27,6 +31,6 @@
     "removeComments": false,
     "jsx": "preserve",
     "lib": ["esnext", "dom"],
-    "types": ["node"]
+    "types": ["node", "jest"]
   }
 }

@@ -7,6 +7,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 # Dependencies and build output
 node_modules/
 /dist/
+/coverage/
 
 # Editor and system files
 .idea/
