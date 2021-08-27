@@ -1,6 +1,6 @@
 {
   "name": "pinia-cached-store",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Pinia store extension that allows transparent caching of state in local storage.",
   "main": "./dist/index.cjs.js",
   "module": "./dist/index.js",
@@ -13,7 +13,7 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "rollup -c rollup.config.js",
+    "build": "rimraf dist && rollup -c rollup.config.js",
     "test": "jest"
   },
   "repository": {
@@ -47,11 +47,15 @@
     "rollup-plugin-terser": "^7.0.2",
     "tslib": "^2.3.1",
     "typescript": "^4.3.5",
-    "vue": "^3.2.0"
+    "vue": "^3.2.0",
+    "vue2": "npm:vue@2"
+  },
+  "dependencies": {
+    "vue-demi": "*"
   },
   "peerDependencies": {
     "pinia": "^2.0.0-rc.4",
     "typescript": "^4.3.5",
-    "vue": "^3.2.0"
+    "vue": "^2.6.14 || ^3.2.0"
   }
 }

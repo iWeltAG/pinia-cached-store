@@ -5,7 +5,7 @@ import {
   StoreDefinition,
   defineStore,
 } from 'pinia';
-import { UnwrapRef } from 'vue';
+import { UnwrapRef } from 'vue-demi';
 
 import { encode, objectRepresentation, decode } from './utils';
 

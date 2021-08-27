@@ -74,8 +74,7 @@ npm install --save-dev pinia-cached-store
 yarn add --dev pinia-cached-store
 ```
 
-We currently test the library with Vue 3 and Pinia 2. Both dependencies need to
-be available in your project.
+Both Vue and Pinia 2 should also be installed as dependencies in your project.
 
 ## Usage
 
