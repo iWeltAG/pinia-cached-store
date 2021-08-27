@@ -89,7 +89,9 @@ describe('a simple store', () => {
     await store.$load({ input: 2 });
     expect(store.value).toBe(2);
 
-    await store.$load({ input: 4 });
+    await expect(store.$load({ input: 4 })).rejects.toThrow(
+      'Error while refreshing cache'
+    );
     expect(store.value).toBe(0);
   });
 
@@ -106,6 +108,21 @@ describe('a simple store', () => {
     jest.spyOn(Date, 'now').mockImplementation(() => fakeDate);
 
     await store.$load({ input: 5 });
+    expect(calculate).toBeCalledTimes(2);
+  });
+
+  it('ignores invalid cache states', async () => {
+    const calculate = jest.fn((input: number) => input % 12);
+    const store = useCalculatingStore(calculate);
+
+    await store.$load({ input: 24 });
+    expect(calculate).toBeCalledTimes(1);
+
+    expect(Object.keys(localStorage)).toHaveLength(1);
+    const cacheKey = Object.keys(localStorage)[0];
+    localStorage.setItem(cacheKey, 'this is invalid base64 !§$%&/()=?');
+
+    await store.$load({ input: 36 });
     expect(calculate).toBeCalledTimes(2);
   });
 });

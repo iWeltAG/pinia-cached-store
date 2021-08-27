@@ -146,35 +146,46 @@ export function defineCachedStore<
           options.id
         }-${cacheKeySuffix}`;
 
-        const rawCacheData = storage.getItem(cacheKey);
-
-        if (rawCacheData !== null) {
-          const cacheData = decode<CacheData<State>>(rawCacheData);
-          if (
-            cacheData.timestamp >
-            Date.now() - (cachingOptions?.maxAge ?? 86400000)
-          ) {
-            // When a cached value is available and not expired
-            // (the default TTL is a day), we can load it.
-            this.$patch(cacheData.state);
-            return;
+        function getExistingCacheData() {
+          const rawCacheData = storage.getItem(cacheKey);
+          if (rawCacheData === null) {
+            return null;
           }
+          try {
+            return decode<CacheData<State>>(rawCacheData);
+          } catch (error) {
+            return null;
+          }
+        }
+
+        const existingCacheData = getExistingCacheData();
+        if (
+          existingCacheData !== null &&
+          existingCacheData.timestamp >
+            Date.now() - (cachingOptions?.maxAge ?? 86400000)
+        ) {
+          // When a cached value is available and not expired
+          // (the default TTL is a day), we can load it.
+          this.$patch(existingCacheData.state);
+          return;
         }
 
         try {
           await refresh.call(this, refreshOptions);
-        } catch (error) {
-          console.error(`Error while refreshing cache ${options.id}`, error);
+        } catch (error: any) {
           storage.removeItem(cacheKey);
-          return;
+          throw Error(
+            `Error while refreshing cache ${options.id}` +
+              (error.message ? `: ${error.message}` : '.')
+          );
         }
 
         // Write back any changes to the cache.
-        const cacheData: CacheData<State> = {
+        const newCacheData: CacheData<State> = {
           state: this.$state,
           timestamp: Date.now(),
         };
-        storage.setItem(cacheKey, encode(cacheData));
+        storage.setItem(cacheKey, encode(newCacheData));
       },
 
       $clearCache() {
