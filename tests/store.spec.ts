@@ -11,7 +11,7 @@ beforeEach(() => {
 function useCalculatingStore(
   calculate: (input: number) => number,
   id: string = 'calculator',
-  options: CachingOptions | undefined = undefined
+  options: CachingOptions<{ value: number }> | undefined = undefined
 ) {
   const useStore = defineCachedStore({
     id,
@@ -172,5 +172,34 @@ describe('non-specific cache keys', () => {
     await store.$load({ input: 6 });
     expect(store.value).toBe(2); // From 6 / 3
     expect(Object.keys(localStorage)).toHaveLength(1);
+  });
+});
+
+describe('custom validity checks', () => {
+  it('are evaluated', async () => {
+    const calculate = jest.fn((input: number) => input);
+    const store = useCalculatingStore(calculate, 'calculator', {
+      checkValidity(data) {
+        // Use the value 1 to simulate an invalid cache which needs to be
+        // refetched.
+        if (data.value == 1) {
+          return false;
+        }
+        return true;
+      },
+    });
+
+    await store.$load({ input: 1 });
+    expect(calculate).toBeCalledTimes(1);
+    await store.$load({ input: 1 });
+    // Should have been called again, because we said that the existing value
+    // is invalid.
+    expect(calculate).toBeCalledTimes(2);
+
+    await store.$load({ input: 2 });
+    expect(calculate).toBeCalledTimes(3);
+    await store.$load({ input: 2 });
+    // The second value should have been loaded from cache as expected.
+    expect(calculate).toBeCalledTimes(3);
   });
 });

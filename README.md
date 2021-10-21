@@ -212,6 +212,10 @@ Following options are supported (all are optional):
 - **maxAge** — This is the maximum age a cache entry may have before it is
   considered stale and needs to be refetched. Provide this as a number, in
   milliseconds (the default is 86400000, or a day).
+- **checkValidity** — In addition to `maxAge`, this option can be used to modify
+  how existing cache entries get loaded. It is set to a function that receives
+  the (old) data and returns either `true` or `false`, depending on whether it
+  should be loaded or discarded and refetched.
 - **storage** — Use this option to use a different
   [Storage](https://developer.mozilla.org/en-US/docs/Web/API/Storage) object to
   save the cache. By default, the Browser's local storage is used.

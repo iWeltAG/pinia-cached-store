@@ -9,7 +9,9 @@ import { UnwrapRef } from 'vue-demi';
 
 import { encode, objectRepresentation, decode } from './utils';
 
-export interface CachingOptions {
+const DEFAULT_MAX_AGE = 86400000;
+
+export interface CachingOptions<State> {
   /**
    * Custom prefix to use for all local storage entries.
    *
@@ -44,6 +46,15 @@ export interface CachingOptions {
   maxAge?: number;
 
   /**
+   * Custom callback for checking if store data is still valid.
+   *
+   * If provided, this function will be called before already cached data is
+   * loaded from the store. If a falsy value is returned here, the data will be
+   * discarded and will be refetched.
+   */
+  checkValidity?: (data: UnwrapRef<State>) => boolean;
+
+  /**
    * Storage object to use. By default, this is `window.localStorage`.
    */
   storage?: Storage;
@@ -69,7 +80,7 @@ export interface CachedStoreOptions<
    */
   refresh(this: UnwrapRef<State>, options: RefreshOptions): Promise<void>;
 
-  caching?: CachingOptions;
+  caching?: CachingOptions<State>;
 }
 
 interface CachedStoreResultingActions<RefreshOptions> {
@@ -152,20 +163,35 @@ export function defineCachedStore<
             return null;
           }
           try {
-            return decode<CacheData<State>>(rawCacheData);
+            const data = decode<CacheData<State>>(rawCacheData);
+            if (!isFinite(data.timestamp) || typeof data.state !== 'object') {
+              return null;
+            }
+
+            // Check whether the data is expired.
+            if (
+              data.timestamp <
+              Date.now() - (cachingOptions?.maxAge ?? DEFAULT_MAX_AGE)
+            ) {
+              return null;
+            }
+
+            // If given, use the user-provided validity check function.
+            if (
+              cachingOptions?.checkValidity &&
+              !cachingOptions.checkValidity(data.state)
+            ) {
+              return null;
+            }
+
+            return data;
           } catch (error) {
             return null;
           }
         }
 
         const existingCacheData = getExistingCacheData();
-        if (
-          existingCacheData !== null &&
-          existingCacheData.timestamp >
-            Date.now() - (cachingOptions?.maxAge ?? 86400000)
-        ) {
-          // When a cached value is available and not expired
-          // (the default TTL is a day), we can load it.
+        if (existingCacheData !== null) {
           this.$patch(existingCacheData.state);
           return;
         }
