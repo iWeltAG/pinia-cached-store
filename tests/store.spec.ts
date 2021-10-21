@@ -1,5 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia';
 import { defineCachedStore, CachingOptions } from 'pinia-cached-store';
+import { encode } from '../src/utils';
 
 beforeEach(() => {
   setActivePinia(createPinia());
@@ -120,10 +121,21 @@ describe('a simple store', () => {
 
     expect(Object.keys(localStorage)).toHaveLength(1);
     const cacheKey = Object.keys(localStorage)[0];
-    localStorage.setItem(cacheKey, 'this is invalid base64 !§$%&/()=?');
 
-    await store.$load({ input: 36 });
+    localStorage.setItem(cacheKey, 'this is invalid base64 !§$%&/()=?');
+    await store.$load({ input: 24 });
     expect(calculate).toBeCalledTimes(2);
+
+    localStorage.setItem(cacheKey, encode({ timestamp: 0, state: null }));
+    await store.$load({ input: 24 });
+    expect(calculate).toBeCalledTimes(3);
+
+    localStorage.setItem(
+      cacheKey,
+      encode({ timestamp: null, state: { value: 2 } })
+    );
+    await store.$load({ input: 24 });
+    expect(calculate).toBeCalledTimes(4);
   });
 });
 
