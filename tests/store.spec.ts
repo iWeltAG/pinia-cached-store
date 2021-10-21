@@ -165,10 +165,11 @@ describe('multiple stores', () => {
 
 describe('non-specific cache keys', () => {
   it('share a cache', async () => {
-    const calculate = jest.fn((input: number) => input / 3);
-    const store = useCalculatingStore(calculate, 'calculator', {
-      refreshSpecificKey: false,
-    });
+    const store = useCalculatingStore(
+      (input: number) => input / 3,
+      'calculator',
+      { refreshSpecificKey: false }
+    );
 
     await store.$load({ input: 3 });
     await store.$load({ input: 4 });
