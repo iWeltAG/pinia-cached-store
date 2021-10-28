@@ -51,6 +51,10 @@ export interface CachingOptions<State> {
    * If provided, this function will be called before already cached data is
    * loaded from the store. If a falsy value is returned here, the data will be
    * discarded and will be refetched.
+   *
+   * @param data The state that is in the cache and could be loaded.
+   * @returns `true` when the state object passed in as `data` is valid, `false`
+   *   otherwise.
    */
   checkValidity?: (data: UnwrapRef<State>) => boolean;
 

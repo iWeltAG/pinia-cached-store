@@ -220,6 +220,34 @@ Following options are supported (all are optional):
   [Storage](https://developer.mozilla.org/en-US/docs/Web/API/Storage) object to
   save the cache. By default, the Browser's local storage is used.
 
+### Error handling
+
+For error logging / handling, you can use Pinia's
+[subscription mechanism](https://pinia.esm.dev/core-concepts/actions.html#subscribing-to-actions).
+Using a subscription, you can perform additional actions before and after the
+load process runs:
+
+```typescript
+let isLoading = false;
+
+store.$onAction(({ name, after, onError }) => {
+  if (name !== '$load') return;
+
+  isLoading = true;
+
+  after(() => (isLoading = false));
+  onError((error) => {
+    isLoading = false;
+    console.warn(`Error while loading store: ${error}`);
+  });
+});
+```
+
+See the aforementioned documentation for more details. In particular, note that
+the subscription lives as long as the component it was created in. Further,
+`$onAction` returns a function that can be used to manually terminate the
+subscription if necessary.
+
 ## License
 
 [MIT](https://github.com/iWeltAG/pinia-cached-store/LICENSE)
