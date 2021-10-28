@@ -216,6 +216,10 @@ Following options are supported (all are optional):
   how existing cache entries get loaded. It is set to a function that receives
   the (old) data and returns either `true` or `false`, depending on whether it
   should be loaded or discarded and refetched.
+- **loadingKey** — Set this to the name of a boolean property defined in `state`
+  and it will automatically be set to `true` when loading starts. After loading
+  is finished (with or without errors), it will be set back to `false`. The
+  property will not be created, it needs to exist in the state already.
 - **storage** — Use this option to use a different
   [Storage](https://developer.mozilla.org/en-US/docs/Web/API/Storage) object to
   save the cache. By default, the Browser's local storage is used.

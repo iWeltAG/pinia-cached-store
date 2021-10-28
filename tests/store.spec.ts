@@ -126,7 +126,7 @@ describe('a simple store', () => {
     await store.$load({ input: 24 });
     expect(calculate).toBeCalledTimes(2);
 
-    localStorage.setItem(cacheKey, encode({ timestamp: 0, state: null }));
+    localStorage.setItem(cacheKey, encode({ timestamp: 0, state: undefined }));
     await store.$load({ input: 24 });
     expect(calculate).toBeCalledTimes(3);
 
@@ -214,5 +214,74 @@ describe('custom validity checks', () => {
     await store.$load({ input: 2 });
     // The second value should have been loaded from cache as expected.
     expect(calculate).toBeCalledTimes(3);
+  });
+});
+
+describe('loading keys', () => {
+  it('are set correctly when loading', async () => {
+    const calculate = jest.fn(() => 2);
+    const useStore = defineCachedStore({
+      id: 'loading',
+      state: () => ({ loading: false, value: 0 }),
+      async refresh(options: {}) {
+        expect(this.loading).toBe(true);
+        this.value = calculate();
+      },
+      caching: {
+        loadingKey: 'loading',
+      },
+    });
+    const store = useStore();
+
+    expect(store.loading).toBe(false);
+    expect(store.value).toBe(0);
+    await store.$load({});
+    expect(store.loading).toBe(false);
+    expect(store.value).toBe(2);
+    expect(calculate).toBeCalledTimes(1);
+
+    // Make sure the loading property is also set when stuff isn't refreshed and
+    // only loaded from the cache.
+    expect(store.loading).toBe(false);
+    await store.$load({});
+    expect(store.loading).toBe(false);
+    expect(calculate).toBeCalledTimes(1);
+  });
+
+  it('are set correctly when an error occurs', async () => {
+    const useStore = defineCachedStore({
+      id: 'loading',
+      state: () => ({ loading: false, value: 0 }),
+      async refresh(options: {}) {
+        expect(this.loading).toBe(true);
+        throw Error();
+      },
+      caching: {
+        loadingKey: 'loading',
+      },
+    });
+    const store = useStore();
+
+    expect(store.loading).toBe(false);
+    await expect(store.$load({})).rejects.toThrow(
+      'Error while refreshing cache'
+    );
+    expect(store.loading).toBe(false);
+  });
+
+  it('refuse to initialize on invalid configurations', () => {
+    expect(() => {
+      defineCachedStore({
+        id: 'loading',
+        state: () => ({ loading: false, value: 0 }),
+        async refresh(options: {}) {},
+        caching: {
+          // By not ignoring but expecting an error, we inherently also kind of
+          // test that the typing system for the loadingKey option works.
+          // @ts-expect-error
+          loadingKey: 'value',
+        },
+      });
+    }).toThrow('invalid loading key');
   });
 });

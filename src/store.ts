@@ -5,13 +5,19 @@ import {
   StoreDefinition,
   defineStore,
 } from 'pinia';
-import { UnwrapRef } from 'vue-demi';
+import { Ref, UnwrapRef } from 'vue-demi';
 
 import { encode, objectRepresentation, decode } from './utils';
 
 const DEFAULT_MAX_AGE = 86400000;
 
-export interface CachingOptions<State> {
+// This type function returns - given a state interface - all the keys that have
+// a boolean value.
+type ExtractBooleanStateKeys<State extends StateTree> = {
+  [K in keyof State]: State[K] extends boolean | Ref<boolean> ? K : never;
+}[keyof State];
+
+export interface CachingOptions<State extends StateTree> {
   /**
    * Custom prefix to use for all local storage entries.
    *
@@ -57,6 +63,14 @@ export interface CachingOptions<State> {
    *   otherwise.
    */
   checkValidity?: (data: UnwrapRef<State>) => boolean;
+
+  /**
+   * This option can be used to add a property to the state that shows whether
+   * the store is currently loading data. It should be set to the name of an
+   * existing (boolean) option in the state. The caching framework will then
+   * automatically update it's value when loading data.
+   */
+  loadingKey?: ExtractBooleanStateKeys<State>;
 
   /**
    * Storage object to use. By default, this is `window.localStorage`.
@@ -144,6 +158,13 @@ export function defineCachedStore<
   const storage = cachingOptions?.storage ?? window.localStorage;
   const refresh = options.refresh;
 
+  if (
+    cachingOptions?.loadingKey &&
+    typeof options.state()[cachingOptions.loadingKey] !== 'boolean'
+  ) {
+    throw Error('Failed to initialize store: invalid loading key');
+  }
+
   return defineStore({
     id: options.id,
     state: options.state,
@@ -152,6 +173,14 @@ export function defineCachedStore<
     actions: {
       async $load(refreshOptions: RefreshOptions) {
         this.$reset();
+
+        const setLoadingKey = (value: boolean) => {
+          if (cachingOptions?.loadingKey) {
+            // @ts-expect-error
+            this[cachingOptions.loadingKey] = value;
+          }
+        };
+        setLoadingKey(true);
 
         const cacheKeySuffix =
           cachingOptions?.refreshSpecificKey ?? true
@@ -197,6 +226,7 @@ export function defineCachedStore<
         const existingCacheData = getExistingCacheData();
         if (existingCacheData !== null) {
           this.$patch(existingCacheData.state);
+          setLoadingKey(false);
           return;
         }
 
@@ -204,6 +234,7 @@ export function defineCachedStore<
           await refresh.call(this, refreshOptions);
         } catch (error: any) {
           storage.removeItem(cacheKey);
+          setLoadingKey(false);
           throw Error(
             `Error while refreshing cache ${options.id}` +
               (error.message ? `: ${error.message}` : '.')
@@ -216,6 +247,7 @@ export function defineCachedStore<
           timestamp: Date.now(),
         };
         storage.setItem(cacheKey, encode(newCacheData));
+        setLoadingKey(false);
       },
 
       $clearCache() {
