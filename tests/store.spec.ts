@@ -1,6 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia';
 import { defineCachedStore, CachingOptions } from 'pinia-cached-store';
 import { encode } from '../src/utils';
+import { watch } from 'vue-demi';
 
 beforeEach(() => {
   setActivePinia(createPinia());
@@ -233,12 +234,28 @@ describe('loading keys', () => {
     });
     const store = useStore();
 
+    // This watcher is used to test reactivity of the loading key value.
+    let loadingValues: boolean[] = [];
+    watch(
+      store.$state,
+      (value) => {
+        loadingValues.push(value.loading);
+      },
+      { deep: true }
+    );
+
     expect(store.loading).toBe(false);
     expect(store.value).toBe(0);
     await store.$load({});
     expect(store.loading).toBe(false);
     expect(store.value).toBe(2);
     expect(calculate).toBeCalledTimes(1);
+    // We require the reactive loading key to go from false - true - false.
+    // For the first value we don't get a watcher callback though, because
+    // it's the initial value.
+    expect(loadingValues.length).toBeGreaterThanOrEqual(2);
+    expect(loadingValues).toContain(true);
+    expect(loadingValues[loadingValues.length - 1]).toBe(false);
 
     // Make sure the loading property is also set when stuff isn't refreshed and
     // only loaded from the cache.
@@ -246,6 +263,9 @@ describe('loading keys', () => {
     await store.$load({});
     expect(store.loading).toBe(false);
     expect(calculate).toBeCalledTimes(1);
+    // Here, we only expect a 'false' event because refresh() wasn't called.
+    expect(loadingValues.length).toBeGreaterThanOrEqual(1);
+    expect(loadingValues[loadingValues.length - 1]).toBe(false);
   });
 
   it('are set correctly when an error occurs', async () => {

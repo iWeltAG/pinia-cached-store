@@ -177,10 +177,11 @@ export function defineCachedStore<
         const setLoadingKey = (value: boolean) => {
           if (cachingOptions?.loadingKey) {
             // @ts-expect-error
-            this[cachingOptions.loadingKey] = value;
+            this.$patch({
+              [cachingOptions.loadingKey]: value,
+            });
           }
         };
-        setLoadingKey(true);
 
         const cacheKeySuffix =
           cachingOptions?.refreshSpecificKey ?? true
@@ -231,6 +232,7 @@ export function defineCachedStore<
         }
 
         try {
+          setLoadingKey(true);
           await refresh.call(this, refreshOptions);
         } catch (error: any) {
           storage.removeItem(cacheKey);
