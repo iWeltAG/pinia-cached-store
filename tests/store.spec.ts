@@ -138,6 +138,37 @@ describe('a simple store', () => {
     await store.$load({ input: 24 });
     expect(calculate).toBeCalledTimes(4);
   });
+
+  it('accepts 2-byte unicode characters as id', async () => {
+    const store = useCalculatingStore((input: number) => input, '☸☹☺☻☼☾☿');
+    // Load, reset and load again to make sure we are both reading and writing
+    // to the cache:
+    await store.$load({ input: 1 });
+    store.$reset();
+    await store.$load({ input: 1 });
+    expect(store.value).toBe(1);
+  });
+
+  it('encodes 2-byte unicode characters when caching', async () => {
+    const useStore = defineCachedStore({
+      id: 'theStore',
+      state: () => ({
+        greeting: 'Hello there, general Kenobi!',
+      }),
+      async refresh({}: any) {
+        this.greeting = '💀💀💀 Aarrrrr Pirates! 💀💀💀';
+      },
+    });
+    const store = useStore();
+
+    // Similarly to the last test, we make sure the cache is both read from and
+    // written to here:
+    await store.$load({});
+    store.$reset();
+    expect(store.greeting).toContain('Kenobi');
+    await store.$load({});
+    expect(store.greeting).toContain('Pirates');
+  });
 });
 
 describe('multiple stores', () => {

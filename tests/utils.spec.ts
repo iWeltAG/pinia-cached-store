@@ -1,4 +1,41 @@
-import { objectRepresentation } from '../src/utils';
+import { encode, decode, objectRepresentation } from '../src/utils';
+
+describe('string encoding and decoding', () => {
+  describe('matches base64-encoded input values', () => {
+    // This test makes sure that our encode() method yields the same result as
+    // just calling btoa() on the input. This is because that was the prior
+    // implementation before unicode support and we don't want to invalidate
+    // all the caches that already exist.
+    for (const input of [
+      'Hello',
+      { hello: 'world' },
+      'The show must go on',
+      'Never gonna give you up, 98127389516928375619872635987!!!!',
+      '',
+    ]) {
+      const jsonInput = JSON.stringify(input);
+
+      it(`for '${input}'`, () => {
+        expect(encode(input)).toBe(btoa(jsonInput));
+        expect(decode(btoa(jsonInput))).toStrictEqual(input);
+        expect(decode(encode(input))).toStrictEqual(input);
+      });
+    }
+  });
+
+  describe('works for unicode input', () => {
+    for (const input of [
+      '💀💀💀 Aarrrrr Pirates! 💀💀💀',
+      '☸☹☺☻☼☾☿',
+      { theThing: '"`' },
+      { whooo: 'Şar' },
+    ]) {
+      it(`'${input}'`, () => {
+        expect(decode(encode(input))).toStrictEqual(input);
+      });
+    }
+  });
+});
 
 describe('object representation', () => {
   it('is different for a few examples', () => {
