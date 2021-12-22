@@ -49,7 +49,9 @@ Later in our app, the store can be used like this:
 
 ```typescript
 const pi = usePiStore();
-pi.$load({ iterations: 99999 });
+// Make sure you are in an async function. Also, feel free to play around with
+// this paramter and get different values:
+await pi.$load({ iterations: 99999 });
 
 // Somewhere else:
 const doublePi = pi.value * 2;
@@ -147,8 +149,8 @@ object you defined for `refresh` and will update the state accordingly:
 // Inside setup() of a component:
 const pizza = usePizzaStore();
 
-onMounted(() => {
-  pizza.$load({ pizzaName: 'hawaii' });
+onMounted(async () => {
+  await pizza.$load({ pizzaName: 'hawaii' });
 });
 ```
 
@@ -158,13 +160,13 @@ created from the same options object as the current call:
 
 ```typescript
 // This will call refresh() with our objects object:
-pizza.$load({ pizzaName: 'hawaii' });
+await pizza.$load({ pizzaName: 'hawaii' });
 // Here, refresh() is called again, since we have a new options object:
-pizza.$load({ pizzaName: 'hawaii', extraCheese: true });
+await pizza.$load({ pizzaName: 'hawaii', extraCheese: true });
 // Again, this will call refresh():
-pizza.$load({ pizzaName: 'hawaii' });
+await pizza.$load({ pizzaName: 'hawaii' });
 // Since this object was passed before, this is loaded from cache:
-pizza.$load({ extraCheese: true, pizzaName: 'hawaii' });
+await pizza.$load({ extraCheese: true, pizzaName: 'hawaii' });
 ```
 
 #### Cache clearing
@@ -176,7 +178,7 @@ want to load some data again afterwards:
 
 ```typescript
 pizza.$clearCache();
-pizza.$load({ pizzaName: 'margherita' });
+await pizza.$load({ pizzaName: 'margherita' });
 ```
 
 Note that this will only clear that specific store's cache — those of other
