@@ -336,3 +336,71 @@ describe('loading keys', () => {
     }).toThrow('invalid loading key');
   });
 });
+
+describe('secondary payload', () => {
+  it('is passed on to the refresh method', async () => {
+    const useStore = defineCachedStore({
+      id: 'payload',
+      state: () => ({ value: 0 }),
+      async refresh(options: {}, argument: number) {
+        expect(argument).toBe(5);
+      },
+    });
+    const store = useStore();
+
+    await store.$load({}, 5);
+  });
+
+  it('is not used for caching key', async () => {
+    const useStore = defineCachedStore({
+      id: 'payload',
+      state: () => ({ value: 0 }),
+      async refresh(options: { factor: number }, argument: number) {
+        this.value = options.factor * argument;
+      },
+    });
+    const store = useStore();
+
+    await store.$load({ factor: 2 }, 4);
+    expect(store.value).toBe(8);
+
+    store.$reset();
+    await store.$load({ factor: 2 }, 10);
+    // This is actually expected to be 8 (not 20), because we now already have
+    // a value for '{ factor: 2 }' in the cache:
+    expect(store.value).toBe(8);
+
+    expect(Object.keys(localStorage)).toHaveLength(1);
+    localStorage.clear();
+
+    await store.$load({ factor: 2 }, 10);
+    expect(store.value).toBe(20);
+  });
+
+  it('is passed to the validity check', async () => {
+    const calculate = jest.fn(
+      (factor: number, argument: number) => factor * argument
+    );
+
+    // This example basically negates the need for a second argument, but it
+    // tests the feature nonetheless:
+    const useStore = defineCachedStore({
+      id: 'payload',
+      state: () => ({ value: 0, argument: 0 }),
+      async refresh(options: { factor: number }, argument: number) {
+        this.value = calculate(options.factor, argument);
+        this.argument = argument;
+      },
+      caching: {
+        checkValidity(data, argument) {
+          return data.argument == argument;
+        },
+      },
+    });
+    const store = useStore();
+
+    await store.$load({ factor: 2 }, 4);
+    await store.$load({ factor: 2 }, 7);
+    expect(calculate).toBeCalledTimes(2);
+  });
+});

@@ -17,7 +17,10 @@ type ExtractBooleanStateKeys<State extends StateTree> = {
   [K in keyof State]: State[K] extends boolean | Ref<boolean> ? K : never;
 }[keyof State];
 
-export interface CachingOptions<State extends StateTree> {
+export interface CachingOptions<
+  State extends StateTree,
+  RefreshPayload = void
+> {
   /**
    * Custom prefix to use for all local storage entries.
    *
@@ -62,7 +65,7 @@ export interface CachingOptions<State extends StateTree> {
    * @returns `true` when the state object passed in as `data` is valid, `false`
    *   otherwise.
    */
-  checkValidity?: (data: UnwrapRef<State>) => boolean;
+  checkValidity?: (data: UnwrapRef<State>, payload: RefreshPayload) => boolean;
 
   /**
    * This option can be used to add a property to the state that shows whether
@@ -79,10 +82,11 @@ export interface CachingOptions<State extends StateTree> {
 }
 
 export interface CachedStoreOptions<
-  RefreshOptions,
   Id extends string,
   State extends StateTree,
-  Getters extends GettersTree<State>
+  Getters extends GettersTree<State>,
+  RefreshOptions,
+  RefreshPayload = void
 > extends DefineStoreOptions<Id, State, Getters, {}> {
   // We override the original state to make sure we always have something to
   // work with.
@@ -95,13 +99,18 @@ export interface CachedStoreOptions<
    * information from the backend and set it in the store (using `this`).
    *
    * @param options Contextual information about which data to fetch.
+   * @param payload Arbitrary secondary payload.
    */
-  refresh(this: UnwrapRef<State>, options: RefreshOptions): Promise<void>;
+  refresh(
+    this: UnwrapRef<State>,
+    options: RefreshOptions,
+    payload: RefreshPayload
+  ): Promise<void>;
 
-  caching?: CachingOptions<State>;
+  caching?: CachingOptions<State, RefreshPayload>;
 }
 
-interface CachedStoreResultingActions<RefreshOptions> {
+interface CachedStoreResultingActions<RefreshOptions, RefreshPayload> {
   /**
    * Populate the store with data matching a given key.
    *
@@ -123,8 +132,10 @@ interface CachedStoreResultingActions<RefreshOptions> {
    *
    * @param options Contextual information used by the fetching function to get
    *   the correct data. This is also used as a caching key.
+   * @param payload Arbitrary payload to pass on. This argument does not factor
+   *   in to the caching key calculation.
    */
-  $load(options: RefreshOptions): Promise<void>;
+  $load(options: RefreshOptions, payload: RefreshPayload): Promise<void>;
 
   /**
    * Clear this store's local cache.
@@ -142,17 +153,24 @@ export interface CacheData<State> {
 }
 
 export function defineCachedStore<
-  RefreshOptions,
   Id extends string,
   State extends StateTree,
-  Getters extends GettersTree<State>
+  Getters extends GettersTree<State>,
+  RefreshOptions,
+  RefreshPayload = void
 >(
-  options: CachedStoreOptions<RefreshOptions, Id, State, Getters>
+  options: CachedStoreOptions<
+    Id,
+    State,
+    Getters,
+    RefreshOptions,
+    RefreshPayload
+  >
 ): StoreDefinition<
   Id,
   State,
   Getters,
-  CachedStoreResultingActions<RefreshOptions>
+  CachedStoreResultingActions<RefreshOptions, RefreshPayload>
 > {
   const cachingOptions = options.caching;
   const storage = cachingOptions?.storage ?? window.localStorage;
@@ -171,7 +189,10 @@ export function defineCachedStore<
     getters: options.getters,
 
     actions: {
-      async $load(refreshOptions: RefreshOptions) {
+      async $load(
+        refreshOptions: RefreshOptions,
+        refreshPayload: RefreshPayload
+      ) {
         this.$reset();
 
         const setLoadingKey = (value: boolean) => {
@@ -213,7 +234,7 @@ export function defineCachedStore<
             // If given, use the user-provided validity check function.
             if (
               cachingOptions?.checkValidity &&
-              !cachingOptions.checkValidity(data.state)
+              !cachingOptions.checkValidity(data.state, refreshPayload)
             ) {
               return null;
             }
@@ -233,7 +254,7 @@ export function defineCachedStore<
 
         try {
           setLoadingKey(true);
-          await refresh.call(this, refreshOptions);
+          await refresh.call(this, refreshOptions, refreshPayload);
         } catch (error: any) {
           storage.removeItem(cacheKey);
           setLoadingKey(false);

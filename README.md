@@ -184,6 +184,48 @@ await pizza.$load({ pizzaName: 'margherita' });
 Note that this will only clear that specific store's cache — those of other
 stores are left untouched.
 
+#### Secondary payloads
+
+The `$load` method accepts a second argument which will be passed verbatim to
+your `refresh` method. You can use this to provide data when refreshing that is
+not factored in when calculating a key for caching. Since caches are stored
+under a key that depends on what you pass as the first argument, you need to use
+the second payload if you have data that isn't part of the state key. This
+payload is also passed to `checkValidity`, if provided.
+
+As an example, we could rewrite the pi store from above to use this argument for
+the number of iterations. That way we only get one local storage entry if we
+call it multiple times (this time with TypeScript):
+
+```typescript
+import { defineCachedStore } from 'pinia-cached-store';
+
+const usePiStore = defineCachedStore({
+  id: 'pi',
+
+  state: () => ({
+    value: 3.14,
+    iterations: 0,
+  }),
+
+  async refresh(options: {}, iterations: number) {
+    this.value = thePiAlgorithmFromAbove(iterations);
+    this.iterations = iterations;
+  },
+
+  caching: {
+    checkValidity(data: { iterations: number }, requestedIterations: number) {
+      // Only recalculate when more iterations are requested:
+      return iterations >= requestedIterations;
+    },
+  },
+});
+```
+
+When calling the store now, a recalculation will only be performed if the number
+of iterations requested is higher than that from the last calculation. Further,
+local storage will only contain one entry for this store.
+
 ### Caching options
 
 The object passed to the store factory function may also contain a set of
