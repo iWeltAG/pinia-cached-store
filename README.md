@@ -184,6 +184,48 @@ await pizza.$load({ pizzaName: 'margherita' });
 Note that this will only clear that specific store's cache — those of other
 stores are left untouched.
 
+### Manual cache writes and SSR
+
+Every cached store has a `$flushCache` method which you can call if you would
+like to force the cache to be written to storage. You don't need to do this when
+calling `$load`, but there might be other circumstances.
+
+For example, in an SSR environment like Nuxt you might want to calculate the
+store's content on the server and store it in the client's local storage while
+hydrating. You can use this snippet to start:
+
+```typescript
+const useComplicatedStore = defineCachedStore({
+  id: 'magic',
+
+  // Don't write to a cache while performing SSR.
+  storage: import.meta.env.SSR ? null : window.localStorage,
+
+  state: () => ({ value: 1 }),
+
+  async refresh() {
+    this.value = calculateValue();
+  },
+
+  // Don't just copy this, read the note below.
+  hydrate(storeState, initialState) {
+    this.$flushCache();
+  },
+});
+```
+
+Note that you might not even need `hydrate`. If the store is pre-filled from
+rendering server-side, there isn't really a need to blindly copy that data to
+the user's local storage. An exception to this suggestion would be if you
+`$load()` different values into the store during the lifecycle of you app. In
+that case it might be beneficial to cache the server-rendered dataset on the
+client as well.
+
+You might also want to check out
+[Vue's hydration guide](https://ssr.vuejs.org/guide/hydration.html),
+[the corresponding Pinia guide](https://pinia.vuejs.org/ssr/), and
+[the docs on Pinia's `hydrate` option](https://pinia.vuejs.org/api/interfaces/pinia.DefineStoreOptions.html#hydrate).
+
 #### Secondary payloads
 
 The `$load` method accepts a second argument which will be passed verbatim to
@@ -266,7 +308,12 @@ Following options are supported (all are optional):
   property will not be created, it needs to exist in the state already.
 - **storage** — Use this option to use a different
   [Storage](https://developer.mozilla.org/en-US/docs/Web/API/Storage) object to
-  save the cache. By default, the Browser's local storage is used.
+  save the cache. By default, the browser's local storage is used. Make sure to
+  handle SSR somehow if you set this option. If you set this to `null`, no
+  storage is used and the cache is effectively bypassed.
+
+You can get final caching key that is actually used from the stores'
+`computedCacheKey` property. It is set after calling `$load`.
 
 ### Error handling
 

@@ -169,6 +169,25 @@ describe('a simple store', () => {
     await store.$load({});
     expect(store.greeting).toContain('Pirates');
   });
+
+  it('works without a storage engine', async () => {
+    const calculate = jest.fn((input: number) => 2 * input);
+    const store = useCalculatingStore(calculate, 'backendless', {
+      storage: null,
+    });
+
+    await store.$load({ input: 1 });
+    expect(store.value).toBe(2);
+    expect(calculate).toBeCalledTimes(1);
+
+    await store.$load({ input: 2 });
+    expect(store.value).toBe(4);
+    expect(calculate).toBeCalledTimes(2);
+
+    await store.$load({ input: 1 });
+    expect(store.value).toBe(2);
+    expect(calculate).toBeCalledTimes(3);
+  });
 });
 
 describe('multiple stores', () => {

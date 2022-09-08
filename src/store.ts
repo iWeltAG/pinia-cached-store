@@ -17,8 +17,20 @@ type ExtractBooleanStateKeys<State extends StateTree> = {
   [K in keyof State]: State[K] extends boolean | Ref<boolean> ? K : never;
 }[keyof State];
 
+interface StateTreeWithoutCacheKey extends StateTree {
+  computedCacheKey: never;
+}
+
+// Augment the user-provided State type with additional fields (currently only
+// the computed cache key) added by pinia-cached-store.
+type CompleteStateTree<State extends StateTreeWithoutCacheKey> =
+  | State
+  | {
+      computedCacheKey: string;
+    };
+
 export interface CachingOptions<
-  State extends StateTree,
+  State extends StateTreeWithoutCacheKey,
   RefreshPayload = void
 > {
   /**
@@ -65,7 +77,10 @@ export interface CachingOptions<
    * @returns `true` when the state object passed in as `data` is valid, `false`
    *   otherwise.
    */
-  checkValidity?: (data: UnwrapRef<State>, payload: RefreshPayload) => boolean;
+  checkValidity?: (
+    data: UnwrapRef<CompleteStateTree<State>>,
+    payload: RefreshPayload
+  ) => boolean;
 
   /**
    * This option can be used to add a property to the state that shows whether
@@ -78,12 +93,12 @@ export interface CachingOptions<
   /**
    * Storage object to use. By default, this is `window.localStorage`.
    */
-  storage?: Storage;
+  storage?: Storage | null;
 }
 
 export interface CachedStoreOptions<
   Id extends string,
-  State extends StateTree,
+  State extends StateTreeWithoutCacheKey,
   Getters extends GettersTree<State>,
   RefreshOptions,
   RefreshPayload = void
@@ -102,7 +117,7 @@ export interface CachedStoreOptions<
    * @param payload Arbitrary secondary payload.
    */
   refresh(
-    this: UnwrapRef<State>,
+    this: UnwrapRef<CompleteStateTree<State>>,
     options: RefreshOptions,
     payload: RefreshPayload
   ): Promise<void>;
@@ -138,6 +153,14 @@ interface CachedStoreResultingActions<RefreshOptions, RefreshPayload> {
   $load(options: RefreshOptions, payload: RefreshPayload): Promise<void>;
 
   /**
+   * Write the current state to the cache.
+   *
+   * This will happen automatically, so you probably won't need to call this
+   * method yourself.
+   */
+  $flushCache(): void;
+
+  /**
    * Clear this store's local cache.
    *
    * This will clear cached data for any option sets that match the store's ID.
@@ -154,8 +177,8 @@ export interface CacheData<State> {
 
 export function defineCachedStore<
   Id extends string,
-  State extends StateTree,
-  Getters extends GettersTree<State>,
+  State extends StateTreeWithoutCacheKey,
+  Getters extends GettersTree<CompleteStateTree<State>>,
   RefreshOptions,
   RefreshPayload = void
 >(
@@ -168,12 +191,17 @@ export function defineCachedStore<
   >
 ): StoreDefinition<
   Id,
-  State,
+  CompleteStateTree<State>,
   Getters,
   CachedStoreResultingActions<RefreshOptions, RefreshPayload>
 > {
-  const cachingOptions = options.caching;
-  const storage = cachingOptions?.storage ?? window.localStorage;
+  const cachingOptions = options.caching ?? {};
+  // Note that the default storage (when undefined is set) evaulates to
+  // localStorage, but the user can still set it to null.
+  const storage =
+    cachingOptions.storage === undefined
+      ? window.localStorage
+      : cachingOptions.storage;
   const refresh = options.refresh;
 
   if (
@@ -185,7 +213,8 @@ export function defineCachedStore<
 
   return defineStore({
     id: options.id,
-    state: options.state,
+    state: (): CompleteStateTree<State> =>
+      Object.assign({ computedCacheKey: '' }, options.state()),
     getters: options.getters,
 
     actions: {
@@ -197,7 +226,6 @@ export function defineCachedStore<
 
         const setLoadingKey = (value: boolean) => {
           if (cachingOptions?.loadingKey) {
-            // @ts-expect-error
             this.$patch({
               [cachingOptions.loadingKey]: value,
             });
@@ -208,17 +236,18 @@ export function defineCachedStore<
           cachingOptions?.refreshSpecificKey ?? true
             ? objectRepresentation(refreshOptions)
             : '0';
-        const cacheKey = `${cachingOptions?.keyPrefix ?? 'store'}-${
+        this.computedCacheKey = `${cachingOptions?.keyPrefix ?? 'store'}-${
           options.id
         }-${cacheKeySuffix}`;
 
-        function getExistingCacheData() {
-          const rawCacheData = storage.getItem(cacheKey);
+        const getExistingCacheData = () => {
+          const rawCacheData = storage?.getItem(this.computedCacheKey) ?? null;
           if (rawCacheData === null) {
             return null;
           }
           try {
-            const data = decode<CacheData<State>>(rawCacheData);
+            const data =
+              decode<CacheData<CompleteStateTree<State>>>(rawCacheData);
             if (!isFinite(data.timestamp) || typeof data.state !== 'object') {
               return null;
             }
@@ -243,7 +272,7 @@ export function defineCachedStore<
           } catch (error) {
             return null;
           }
-        }
+        };
 
         const existingCacheData = getExistingCacheData();
         if (existingCacheData !== null) {
@@ -256,7 +285,7 @@ export function defineCachedStore<
           setLoadingKey(true);
           await refresh.call(this, refreshOptions, refreshPayload);
         } catch (error: any) {
-          storage.removeItem(cacheKey);
+          storage?.removeItem(this.computedCacheKey);
           setLoadingKey(false);
           throw Error(
             `Error while refreshing cache ${options.id}` +
@@ -264,23 +293,26 @@ export function defineCachedStore<
           );
         }
 
-        // Write back any changes to the cache.
-        const newCacheData: CacheData<State> = {
-          state: this.$state,
-          timestamp: Date.now(),
-        };
-        storage.setItem(cacheKey, encode(newCacheData));
+        this.$flushCache();
         setLoadingKey(false);
       },
 
+      async $flushCache() {
+        const newCacheData: CacheData<CompleteStateTree<State>> = {
+          state: this.$state,
+          timestamp: Date.now(),
+        };
+        storage?.setItem(this.computedCacheKey, encode(newCacheData));
+      },
+
       $clearCache() {
-        for (const key of Object.keys(storage)) {
+        for (const key of Object.keys(storage ?? {})) {
           if (
             key.startsWith(
               `${cachingOptions?.keyPrefix ?? 'store'}-${options.id}-`
             )
           ) {
-            storage.removeItem(key);
+            storage?.removeItem(key);
           }
         }
         this.$reset();
