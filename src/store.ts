@@ -1,7 +1,7 @@
 import {
   DefineStoreOptions,
   StateTree,
-  GettersTree,
+  _GettersTree,
   StoreDefinition,
   defineStore,
 } from 'pinia';
@@ -18,16 +18,17 @@ type ExtractBooleanStateKeys<State extends StateTree> = {
 }[keyof State];
 
 interface StateTreeWithoutCacheKey extends StateTree {
-  computedCacheKey: never;
+  computedCacheKey?: never;
 }
 
 // Augment the user-provided State type with additional fields (currently only
 // the computed cache key) added by pinia-cached-store.
-type CompleteStateTree<State extends StateTreeWithoutCacheKey> =
-  | State
-  | {
-      computedCacheKey: string;
-    };
+type CompleteStateTree<State extends StateTreeWithoutCacheKey> = Omit<
+  State,
+  'computedCacheKey'
+> & {
+  computedCacheKey: string;
+};
 
 export interface CachingOptions<
   State extends StateTreeWithoutCacheKey,
@@ -99,13 +100,17 @@ export interface CachingOptions<
 export interface CachedStoreOptions<
   Id extends string,
   State extends StateTreeWithoutCacheKey,
-  Getters extends GettersTree<State>,
+  Getters extends _GettersTree<CompleteStateTree<State>>,
   RefreshOptions,
   RefreshPayload = void
-> extends DefineStoreOptions<Id, State, Getters, {}> {
-  // We override the original state to make sure we always have something to
-  // work with.
+> extends Omit<
+    DefineStoreOptions<Id, CompleteStateTree<State>, Getters, {}>,
+    'state'
+  > {
+  // We override the original state to make sure it's non-optional.
   state: () => State;
+  // It isn't allowed to define your own actions (yet).
+  actions?: never;
 
   /**
    * Refresh function to populate the store with new data.
@@ -171,14 +176,14 @@ interface CachedStoreResultingActions<RefreshOptions, RefreshPayload> {
 }
 
 export interface CacheData<State> {
-  state: State;
+  state: UnwrapRef<State>;
   timestamp: number;
 }
 
 export function defineCachedStore<
   Id extends string,
   State extends StateTreeWithoutCacheKey,
-  Getters extends GettersTree<CompleteStateTree<State>>,
+  Getters extends _GettersTree<CompleteStateTree<State>>,
   RefreshOptions,
   RefreshPayload = void
 >(
@@ -206,16 +211,19 @@ export function defineCachedStore<
 
   if (
     cachingOptions?.loadingKey &&
-    typeof options.state()[cachingOptions.loadingKey] !== 'boolean'
+    (cachingOptions.loadingKey === 'computedCacheKey' ||
+      typeof options.state()[cachingOptions.loadingKey] !== 'boolean')
   ) {
     throw Error('Failed to initialize store: invalid loading key');
   }
 
   return defineStore({
-    id: options.id,
-    state: (): CompleteStateTree<State> =>
-      Object.assign({ computedCacheKey: '' }, options.state()),
-    getters: options.getters,
+    ...options,
+
+    state: (): CompleteStateTree<State> => ({
+      ...options.state(),
+      computedCacheKey: '',
+    }),
 
     actions: {
       async $load(
@@ -228,7 +236,7 @@ export function defineCachedStore<
           if (cachingOptions?.loadingKey) {
             this.$patch({
               [cachingOptions.loadingKey]: value,
-            });
+            } as Partial<State>);
           }
         };
 
@@ -236,9 +244,11 @@ export function defineCachedStore<
           cachingOptions?.refreshSpecificKey ?? true
             ? objectRepresentation(refreshOptions)
             : '0';
-        this.computedCacheKey = `${cachingOptions?.keyPrefix ?? 'store'}-${
-          options.id
-        }-${cacheKeySuffix}`;
+        this.computedCacheKey = [
+          cachingOptions?.keyPrefix ?? 'store',
+          options.id,
+          cacheKeySuffix,
+        ].join('-');
 
         const getExistingCacheData = () => {
           const rawCacheData = storage?.getItem(this.computedCacheKey) ?? null;
@@ -297,7 +307,7 @@ export function defineCachedStore<
         setLoadingKey(false);
       },
 
-      async $flushCache() {
+      $flushCache() {
         const newCacheData: CacheData<CompleteStateTree<State>> = {
           state: this.$state,
           timestamp: Date.now(),
