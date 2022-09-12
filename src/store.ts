@@ -17,21 +17,12 @@ type ExtractBooleanStateKeys<State extends StateTree> = {
   [K in keyof State]: State[K] extends boolean | Ref<boolean> ? K : never;
 }[keyof State];
 
-interface StateTreeWithoutCacheKey extends StateTree {
-  computedCacheKey?: never;
+interface CachedStateTree extends StateTree {
+  computedCacheKey?: string;
 }
 
-// Augment the user-provided State type with additional fields (currently only
-// the computed cache key) added by pinia-cached-store.
-type CompleteStateTree<State extends StateTreeWithoutCacheKey> = Omit<
-  State,
-  'computedCacheKey'
-> & {
-  computedCacheKey: string;
-};
-
 export interface CachingOptions<
-  State extends StateTreeWithoutCacheKey,
+  State extends CachedStateTree,
   RefreshPayload = void
 > {
   /**
@@ -79,7 +70,7 @@ export interface CachingOptions<
    *   otherwise.
    */
   checkValidity?: (
-    data: UnwrapRef<CompleteStateTree<State>>,
+    data: UnwrapRef<CachedStateTree>,
     payload: RefreshPayload
   ) => boolean;
 
@@ -99,14 +90,11 @@ export interface CachingOptions<
 
 export interface CachedStoreOptions<
   Id extends string,
-  State extends StateTreeWithoutCacheKey,
-  Getters extends _GettersTree<CompleteStateTree<State>>,
+  State extends CachedStateTree,
+  Getters extends _GettersTree<State>,
   RefreshOptions,
   RefreshPayload = void
-> extends Omit<
-    DefineStoreOptions<Id, CompleteStateTree<State>, Getters, {}>,
-    'state'
-  > {
+> extends Omit<DefineStoreOptions<Id, State, Getters, {}>, 'state'> {
   // We override the original state to make sure it's non-optional.
   state: () => State;
   // It isn't allowed to define your own actions (yet).
@@ -122,7 +110,7 @@ export interface CachedStoreOptions<
    * @param payload Arbitrary secondary payload.
    */
   refresh(
-    this: UnwrapRef<CompleteStateTree<State>>,
+    this: UnwrapRef<State>,
     options: RefreshOptions,
     payload: RefreshPayload
   ): Promise<void>;
@@ -182,8 +170,8 @@ export interface CacheData<State> {
 
 export function defineCachedStore<
   Id extends string,
-  State extends StateTreeWithoutCacheKey,
-  Getters extends _GettersTree<CompleteStateTree<State>>,
+  State extends CachedStateTree,
+  Getters extends _GettersTree<State>,
   RefreshOptions,
   RefreshPayload = void
 >(
@@ -196,7 +184,7 @@ export function defineCachedStore<
   >
 ): StoreDefinition<
   Id,
-  CompleteStateTree<State>,
+  State,
   Getters,
   CachedStoreResultingActions<RefreshOptions, RefreshPayload>
 > {
@@ -219,11 +207,6 @@ export function defineCachedStore<
 
   return defineStore({
     ...options,
-
-    state: (): CompleteStateTree<State> => ({
-      ...options.state(),
-      computedCacheKey: '',
-    }),
 
     actions: {
       async $load(
@@ -251,13 +234,16 @@ export function defineCachedStore<
         ].join('-');
 
         const getExistingCacheData = () => {
-          const rawCacheData = storage?.getItem(this.computedCacheKey) ?? null;
+          if (!this.computedCacheKey) {
+            return null;
+          }
+          // Using || instead of ?? here to also catch empty storage entries.
+          const rawCacheData = storage?.getItem(this.computedCacheKey) || null;
           if (rawCacheData === null) {
             return null;
           }
           try {
-            const data =
-              decode<CacheData<CompleteStateTree<State>>>(rawCacheData);
+            const data = decode<CacheData<State>>(rawCacheData);
             if (!isFinite(data.timestamp) || typeof data.state !== 'object') {
               return null;
             }
@@ -308,7 +294,10 @@ export function defineCachedStore<
       },
 
       $flushCache() {
-        const newCacheData: CacheData<CompleteStateTree<State>> = {
+        if (!this.computedCacheKey) {
+          return;
+        }
+        const newCacheData: CacheData<State> = {
           state: this.$state,
           timestamp: Date.now(),
         };
