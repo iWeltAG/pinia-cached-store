@@ -198,8 +198,10 @@ hydrating. You can use this snippet to start:
 const useComplicatedStore = defineCachedStore({
   id: 'magic',
 
-  // Don't write to a cache while performing SSR.
-  storage: import.meta.env.SSR ? null : window.localStorage,
+  caching: {
+    // Don't write to a cache while performing SSR.
+    storage: import.meta.env.SSR ? null : window.localStorage,
+  },
 
   state: () => ({ value: 1 }),
 
