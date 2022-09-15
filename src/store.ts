@@ -1,13 +1,16 @@
 import {
   DefineStoreOptions,
+  PiniaCustomProperties,
   StateTree,
-  _GettersTree,
   StoreDefinition,
+  _GettersTree,
+  _StoreWithGetters,
+  _StoreWithState,
   defineStore,
 } from 'pinia';
 import { Ref, UnwrapRef } from 'vue-demi';
 
-import { encode, objectRepresentation, decode } from './utils';
+import { decode, encode, objectRepresentation } from './utils';
 
 const DEFAULT_MAX_AGE = 86400000;
 
@@ -110,7 +113,13 @@ export interface CachedStoreOptions<
    * @param payload Arbitrary secondary payload.
    */
   refresh(
-    this: UnwrapRef<State>,
+    this: UnwrapRef<State> &
+      // We intentionally don't expose CachedStoreResultingActions here, because
+      // that would probably introduce recursion and there isn't really a good
+      // reason to do that here.
+      _StoreWithState<Id, State, Getters, {}> &
+      _StoreWithGetters<Getters> &
+      PiniaCustomProperties,
     options: RefreshOptions,
     payload: RefreshPayload
   ): Promise<void>;
