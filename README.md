@@ -199,7 +199,9 @@ const useComplicatedStore = defineCachedStore({
   id: 'magic',
 
   caching: {
-    // Don't write to a cache while performing SSR.
+    // Don't write to a cache while performing SSR. You'll need to check your
+    // SSR framework's docs to find out how to check if SSR is currently
+    // running.
     storage: import.meta.env.SSR ? null : window.localStorage,
   },
 
