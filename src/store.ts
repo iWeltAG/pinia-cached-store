@@ -16,11 +16,11 @@ const DEFAULT_MAX_AGE = 86400000;
 
 // This type function returns - given a state interface - all the keys that have
 // a boolean value.
-type ExtractBooleanStateKeys<State extends StateTree> = {
+export type ExtractBooleanStateKeys<State extends StateTree> = {
   [K in keyof State]: State[K] extends boolean | Ref<boolean> ? K : never;
 }[keyof State];
 
-interface CachedStateTree extends StateTree {
+export interface CachedStateTree extends StateTree {
   computedCacheKey?: string;
 }
 
@@ -127,7 +127,7 @@ export interface CachedStoreOptions<
   caching?: CachingOptions<State, RefreshPayload>;
 }
 
-interface CachedStoreResultingActions<RefreshOptions, RefreshPayload> {
+export interface CachedStoreResultingActions<RefreshOptions, RefreshPayload> {
   /**
    * Populate the store with data matching a given key.
    *
