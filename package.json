@@ -12,8 +12,9 @@
     },
     "./package.json": "./package.json"
   },
+  "type": "module",
   "scripts": {
-    "build": "rimraf dist && rollup -c rollup.config.js",
+    "build": "rimraf dist && rollup -c rollup.config.mjs",
     "test": "jest"
   },
   "repository": {
