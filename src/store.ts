@@ -8,7 +8,7 @@ import {
   _StoreWithState,
   defineStore,
 } from 'pinia';
-import { Ref, UnwrapRef } from 'vue-demi';
+import { Ref, UnwrapRef } from 'vue';
 
 import { decode, encode, objectRepresentation } from './utils';
 
@@ -290,7 +290,7 @@ export function defineCachedStore<
           setLoadingKey(true);
           await refresh.call(this, refreshOptions, refreshPayload);
         } catch (error: any) {
-          storage?.removeItem(this.computedCacheKey);
+          storage?.removeItem(this.computedCacheKey as string);
           setLoadingKey(false);
           throw Error(
             `Error while refreshing cache ${options.id}` +
@@ -310,7 +310,7 @@ export function defineCachedStore<
           state: this.$state,
           timestamp: Date.now(),
         };
-        storage?.setItem(this.computedCacheKey, encode(newCacheData));
+        storage?.setItem(this.computedCacheKey as string, encode(newCacheData));
       },
 
       $clearCache() {

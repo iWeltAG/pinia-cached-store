@@ -1,7 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia';
 import { defineCachedStore, CachingOptions } from 'pinia-cached-store';
 import { encode } from '../src/utils';
-import { watch } from 'vue-demi';
+import { watch } from 'vue';
 
 beforeEach(() => {
   setActivePinia(createPinia());
