@@ -66,7 +66,7 @@ export interface CachingOptions<
    *
    * If provided, this function will be called before already cached data is
    * loaded from the store. If a falsy value is returned here, the data will be
-   * discarded and will be refetched.
+   * discarded and will be fetched again.
    *
    * @param data The state that is in the cache and could be loaded.
    * @returns `true` when the state object passed in as `data` is valid, `false`
@@ -81,7 +81,7 @@ export interface CachingOptions<
    * This option can be used to add a property to the state that shows whether
    * the store is currently loading data. It should be set to the name of an
    * existing (boolean) option in the state. The caching framework will then
-   * automatically update it's value when loading data.
+   * automatically update the value when loading data.
    */
   loadingKey?: ExtractBooleanStateKeys<State>;
 
@@ -144,7 +144,7 @@ export interface CachedStoreResultingActions<RefreshOptions, RefreshPayload> {
    * The `options` parameter has two purposes: first, it serves as the cache
    * key. That means that this object is used to determine whether the resulting
    * state of a previous `$load()` call can be used without needing to refetch
-   * new data. It also allow a user to pass information to `refresh()` about the
+   * new data. It also allows a user to pass information to `refresh()` about the
    * current context, for example a user ID.
    *
    * @param options Contextual information used by the fetching function to get
@@ -198,7 +198,7 @@ export function defineCachedStore<
   CachedStoreResultingActions<RefreshOptions, RefreshPayload>
 > {
   const cachingOptions = options.caching ?? {};
-  // Note that the default storage (when undefined is set) evaulates to
+  // Note that the default storage (when undefined is set) evaluates to
   // localStorage, but the user can still set it to null.
   const storage =
     cachingOptions.storage === undefined
@@ -214,7 +214,7 @@ export function defineCachedStore<
     throw Error('Failed to initialize store: invalid loading key');
   }
 
-  return defineStore({
+  return defineStore(options.id, {
     ...options,
 
     actions: {
