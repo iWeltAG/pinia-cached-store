@@ -2,6 +2,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { defineCachedStore, CachingOptions } from 'pinia-cached-store';
 import { encode } from '../src/utils';
 import { watch } from 'vue';
+import { vi } from 'vitest';
 
 beforeEach(() => {
   setActivePinia(createPinia());
@@ -31,7 +32,7 @@ function useCalculatingStore(
 
 describe('a simple store', () => {
   it('correctly performs caching', async () => {
-    const calculate = jest.fn((input: number) => 2 * input);
+    const calculate = vi.fn((input: number) => 2 * input);
     const store = useCalculatingStore(calculate);
 
     expect(Object.keys(localStorage)).toHaveLength(0);
@@ -40,18 +41,18 @@ describe('a simple store', () => {
     await store.$load({ input: 4 });
     expect(store.value).toBe(8);
     expect(Object.keys(localStorage)).toHaveLength(1);
-    expect(calculate).toBeCalledTimes(1);
+    expect(calculate).toHaveBeenCalledTimes(1);
 
     await store.$load({ input: 5 });
     expect(store.value).toBe(10);
     expect(Object.keys(localStorage)).toHaveLength(2);
-    expect(calculate).toBeCalledTimes(2);
+    expect(calculate).toHaveBeenCalledTimes(2);
 
     // Now we should hit the cache.
     await store.$load({ input: 4 });
     expect(store.value).toBe(8);
     expect(Object.keys(localStorage)).toHaveLength(2);
-    expect(calculate).toBeCalledTimes(2);
+    expect(calculate).toHaveBeenCalledTimes(2);
 
     Object.keys(localStorage).forEach((key) =>
       expect(key).toContain(store.$id)
@@ -80,7 +81,7 @@ describe('a simple store', () => {
   });
 
   it('transparently resets when refresh errors', async () => {
-    const calculate = jest
+    const calculate = vi
       .fn()
       .mockImplementationOnce((input: number) => input)
       .mockImplementationOnce(() => {
@@ -98,45 +99,45 @@ describe('a simple store', () => {
   });
 
   it('reloads when the cache expires', async () => {
-    const calculate = jest.fn((input: number) => input * input);
+    const calculate = vi.fn((input: number) => input * input);
     const store = useCalculatingStore(calculate);
 
     await store.$load({ input: 5 });
     await store.$load({ input: 5 });
-    expect(calculate).toBeCalledTimes(1);
+    expect(calculate).toHaveBeenCalledTimes(1);
 
     // Move three days into the future
     const fakeDate = Date.now() + 1000 * 60 * 60 * 24 * 3;
-    jest.spyOn(Date, 'now').mockImplementation(() => fakeDate);
+    vi.spyOn(Date, 'now').mockImplementation(() => fakeDate);
 
     await store.$load({ input: 5 });
-    expect(calculate).toBeCalledTimes(2);
+    expect(calculate).toHaveBeenCalledTimes(2);
   });
 
   it('ignores invalid cache states', async () => {
-    const calculate = jest.fn((input: number) => input % 12);
+    const calculate = vi.fn((input: number) => input % 12);
     const store = useCalculatingStore(calculate);
 
     await store.$load({ input: 24 });
-    expect(calculate).toBeCalledTimes(1);
+    expect(calculate).toHaveBeenCalledTimes(1);
 
     expect(Object.keys(localStorage)).toHaveLength(1);
     const cacheKey = Object.keys(localStorage)[0];
 
     localStorage.setItem(cacheKey, 'this is invalid base64 !§$%&/()=?');
     await store.$load({ input: 24 });
-    expect(calculate).toBeCalledTimes(2);
+    expect(calculate).toHaveBeenCalledTimes(2);
 
     localStorage.setItem(cacheKey, encode({ timestamp: 0, state: undefined }));
     await store.$load({ input: 24 });
-    expect(calculate).toBeCalledTimes(3);
+    expect(calculate).toHaveBeenCalledTimes(3);
 
     localStorage.setItem(
       cacheKey,
       encode({ timestamp: null, state: { value: 2 } })
     );
     await store.$load({ input: 24 });
-    expect(calculate).toBeCalledTimes(4);
+    expect(calculate).toHaveBeenCalledTimes(4);
   });
 
   it('accepts 2-byte unicode characters as id', async () => {
@@ -171,22 +172,22 @@ describe('a simple store', () => {
   });
 
   it('works without a storage engine', async () => {
-    const calculate = jest.fn((input: number) => 2 * input);
+    const calculate = vi.fn((input: number) => 2 * input);
     const store = useCalculatingStore(calculate, 'backendless', {
       storage: null,
     });
 
     await store.$load({ input: 1 });
     expect(store.value).toBe(2);
-    expect(calculate).toBeCalledTimes(1);
+    expect(calculate).toHaveBeenCalledTimes(1);
 
     await store.$load({ input: 2 });
     expect(store.value).toBe(4);
-    expect(calculate).toBeCalledTimes(2);
+    expect(calculate).toHaveBeenCalledTimes(2);
 
     await store.$load({ input: 1 });
     expect(store.value).toBe(2);
-    expect(calculate).toBeCalledTimes(3);
+    expect(calculate).toHaveBeenCalledTimes(3);
   });
 });
 
@@ -241,7 +242,7 @@ describe('non-specific cache keys', () => {
 
 describe('custom validity checks', () => {
   it('are evaluated', async () => {
-    const calculate = jest.fn((input: number) => input);
+    const calculate = vi.fn((input: number) => input);
     const store = useCalculatingStore(calculate, 'calculator', {
       checkValidity(data) {
         // Use the value 1 to simulate an invalid cache which needs to be
@@ -254,23 +255,23 @@ describe('custom validity checks', () => {
     });
 
     await store.$load({ input: 1 });
-    expect(calculate).toBeCalledTimes(1);
+    expect(calculate).toHaveBeenCalledTimes(1);
     await store.$load({ input: 1 });
     // Should have been called again, because we said that the existing value
     // is invalid.
-    expect(calculate).toBeCalledTimes(2);
+    expect(calculate).toHaveBeenCalledTimes(2);
 
     await store.$load({ input: 2 });
-    expect(calculate).toBeCalledTimes(3);
+    expect(calculate).toHaveBeenCalledTimes(3);
     await store.$load({ input: 2 });
     // The second value should have been loaded from cache as expected.
-    expect(calculate).toBeCalledTimes(3);
+    expect(calculate).toHaveBeenCalledTimes(3);
   });
 });
 
 describe('loading keys', () => {
   it('are set correctly when loading', async () => {
-    const calculate = jest.fn(() => 2);
+    const calculate = vi.fn(() => 2);
     const useStore = defineCachedStore({
       id: 'loading',
       state: () => ({ loading: false, value: 0 }),
@@ -299,7 +300,7 @@ describe('loading keys', () => {
     await store.$load({});
     expect(store.loading).toBe(false);
     expect(store.value).toBe(2);
-    expect(calculate).toBeCalledTimes(1);
+    expect(calculate).toHaveBeenCalledTimes(1);
     // We require the reactive loading key to go from false - true - false.
     // For the first value we don't get a watcher callback though, because
     // it's the initial value.
@@ -312,7 +313,7 @@ describe('loading keys', () => {
     expect(store.loading).toBe(false);
     await store.$load({});
     expect(store.loading).toBe(false);
-    expect(calculate).toBeCalledTimes(1);
+    expect(calculate).toHaveBeenCalledTimes(1);
     // Here, we only expect a 'false' event because refresh() wasn't called.
     expect(loadingValues.length).toBeGreaterThanOrEqual(1);
     expect(loadingValues[loadingValues.length - 1]).toBe(false);
@@ -397,7 +398,7 @@ describe('secondary payload', () => {
   });
 
   it('is passed to the validity check', async () => {
-    const calculate = jest.fn(
+    const calculate = vi.fn(
       (factor: number, argument: number) => factor * argument
     );
 
@@ -420,6 +421,6 @@ describe('secondary payload', () => {
 
     await store.$load({ factor: 2 }, 4);
     await store.$load({ factor: 2 }, 7);
-    expect(calculate).toBeCalledTimes(2);
+    expect(calculate).toHaveBeenCalledTimes(2);
   });
 });
